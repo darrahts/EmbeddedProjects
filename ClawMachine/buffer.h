@@ -14,6 +14,9 @@
 #ifndef SRC_BUFFER_H_
 #define SRC_BUFFER_H_
 
+//change this to the desired capacity!
+#define CAPACITY 30
+
 //buffer
 typedef struct c_buf_t
 {
@@ -24,13 +27,16 @@ typedef struct c_buf_t
 	pthread_cond_t cv;
 	pthread_mutex_t lock;
 
-	char dataArray[30];
+	char dataArray[CAPACITY];
 } c_buf_t;
 
-void c_buf_init(struct c_buf_t* buf, int capacity);
+//initialize the buffer
+void c_buf_init(struct c_buf_t* buf);
 
+//add an item to the buffer
 void enqueue(void* buffer, char dir);
 
+//remove an item from the buffer
 char dequeue(void* buffer);
 
 void test();

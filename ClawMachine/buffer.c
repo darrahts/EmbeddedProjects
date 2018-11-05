@@ -9,11 +9,11 @@
 
 
 //initialize the buffer
-void c_buf_init(struct c_buf_t* buf, int capacity)
+void c_buf_init(struct c_buf_t* buf)
 {
 	pthread_mutex_init(&buf->lock, NULL);
 	pthread_cond_init(&buf->cv, NULL);
-	buf->capacity = capacity;
+	buf->capacity = CAPACITY;
 	buf->counter = 0;
 	buf->in = 0;
 	buf->out = 0;
@@ -30,14 +30,14 @@ void enqueue(void* buffer, char dir)
 	}
 
 	buf->dataArray[buf->in % buf->capacity] = dir;
-	printf("enqueuing: %c\n", dir);
+	//printf("enqueuing: %c\n", dir);
 	buf->in++;
 	buf->counter++;
 
 	pthread_cond_broadcast(&buf->cv);
 	pthread_mutex_unlock(&buf->lock);
 
-	if(buf->in == 16)
+	if(buf->in == CAPACITY)
 	{
 		buf->in = 0;
 	}
@@ -51,18 +51,18 @@ char dequeue(void* buffer)
 	{
 		pthread_cond_wait(&buf->cv, &buf->lock);
 	}
-	printf("no wait.\n");
+	//printf("no wait.\n");
 	fflush(stdout);
 
 	char dir = buf->dataArray[buf->out % buf->capacity];
-	printf("denqueuing: %c\n", dir);
+	//printf("denqueuing: %c\n", dir);
 	buf->out++;
 	buf->counter--;
 
 	pthread_cond_broadcast(&buf->cv);
 	pthread_mutex_unlock(&buf->lock);
 
-	if(buf->out == 16)
+	if(buf->out == CAPACITY)
 	{
 		buf->out = 0;
 	}

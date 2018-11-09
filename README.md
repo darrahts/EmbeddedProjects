@@ -1,2 +1,2 @@
 # EmbeddedProjects
-embedded projects for robots and such in C
+embedded projects, mostly done using the beaglebone black.

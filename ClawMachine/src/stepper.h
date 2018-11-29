@@ -6,21 +6,26 @@
  */
 
 #include "input.h"
+#include <time.h>
 
 #ifndef SRC_STEPPER_H_
 #define SRC_STEPPER_H_
 
 					//p8 header
-#define A_1 66		// 7
-#define A_2 69		// 9
-#define A_3 45		// 11
-#define A_4 47		// 15
+#define A_1 69		// 7
+#define A_2 66		// 9
+#define A_3 47		// 11
+#define A_4 45		// 15
 
 #define B_1 67		// 8
 #define B_2 68		// 10
 #define B_3 44		// 12
 #define B_4 26 		// 14
 
+#define STEP_SIZE 8
+
+//used for timing the stepper firing, not permanent
+clock_t t;
 
 /* the stepper "object" that is controlled with this "class"
  */
@@ -53,6 +58,10 @@ typedef struct Stepper
 	gpio* pin2;
 	gpio* pin3;
 	gpio* pin4;
+
+	//returns the current step number (does not roll over)
+	//useful for determining position on the axis
+	int current_step_number;
 
     // which step the motor is on (base 4) to determine the correct
    	// firing of the gpio pins, do not modify or use

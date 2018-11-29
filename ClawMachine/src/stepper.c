@@ -66,8 +66,11 @@ void init_stepper(struct Stepper* stepper, int stepsPerRotation, int pins[4], ch
 	//'s' means stopped, 'l' means left, 'r' means right
 	stepper->direction = 's';
 	stepper->previousDirection = 's';
-
 	stepper->axis = axis;
+	if(stepper->axis == 'x')
+		stepper->current_step_number = 1600;
+	else if(stepper->axis == 'y')
+		stepper->current_step_number = 0;
 }
 
 //sets rpm speed, calculates delays in us for the coil firing
@@ -93,11 +96,15 @@ int step(struct Stepper* stepper, int numSteps, char dir)
 	stepper->previousDirection = stepper->direction;
 	stepper->direction = dir;
 	int stepsToTake = numSteps;
+	//t = clock();
 	while(stepsToTake > 0)
 	{
-		printf("steps left: %d\n", stepsToTake);
+		//printf("steps left: %d\n", stepsToTake);
 		if(stepper->direction == 'l')
 		{
+			if(stepper->current_step_number >= 1600)
+				return -1;
+			stepper->current_step_number++;
 			stepper->__stepNum__++;
 			if(stepper->__stepNum__ == stepper->stepsPerRotation)
 			{
@@ -106,17 +113,23 @@ int step(struct Stepper* stepper, int numSteps, char dir)
 		}
 		else
 		{
+			if(stepper->current_step_number <= 0)
+				return -1;
 			if(stepper->__stepNum__ == 0)
 			{
 				stepper->__stepNum__ = stepper->stepsPerRotation;
 			}
 			stepper->__stepNum__--;
+			stepper->current_step_number--;
 		}
 		stepsToTake--;
 		if(__step_motor__(stepper) < 0)
 			return -1;
 		usleep(stepper->stepDelay);
 	}
+	t = clock() - t;
+	//double total_time = (((double)t)/CLOCKS_PER_SEC)*1000;
+	//printf("total time: %fms\n", total_time);
 	stop_motor(stepper);
 	return 0;
 }
@@ -167,8 +180,9 @@ void stop_motor(struct Stepper* stepper)
 //sets the gpio pins to the correct motor coil firing
 int __step_motor__(struct Stepper* stepper)
 {
-	printf("%c\n", stepper->direction);
-	int thisStep = stepper->__stepNum__ % 4;
+	//printf("%c\n", stepper->direction);
+	int thisStep = abs(stepper->__stepNum__) % 4;
+	//printf("step number: %d\n", thisStep);
 	if((stepper->axis == 'x' && ((stepper->direction == 'l' && x_left_flag) || (stepper->direction == 'r' && x_right_flag))) ||
 		(stepper->axis == 'y' && ((stepper->direction == 'l' && y_left_flag) || (stepper->direction == 'r' && y_right_flag))) || stop_flag)
 	{
@@ -214,45 +228,54 @@ int __step_motor__(struct Stepper* stepper)
 	return 0;
 }
 
+//moves the opposite way when a limit switch is hit
 void __reset_limit_flags__(struct Stepper* stepper)
 {
-	char dir;
-	if(stepper->direction == 'l')
-		dir = 'r';
-	if(stepper->direction == 'r')
-		dir = 'l';
-
-	printf("%c\n", dir);
-	step(stepper, 8, dir);
+	char dir = stepper->direction;
+	char oppositeDir = stepper->previousDirection;
+	if(dir == 'l')
+	{
+		oppositeDir = 'r';
+	}
+	else if(dir == 'r')
+	{
+		oppositeDir = 'l';
+	}
+	step(stepper, 16, oppositeDir);
 	printf("resetting stepper.\n");
-	if(stepper->axis == 'x' && stepper->previousDirection == 'l')
+	if(stepper->axis == 'x' && dir == 'l')
 	{
 		printf("resetting x_left_flag.\n");
 		pthread_mutex_lock(&x_left_flagM);
 		x_left_flag = 0;
 		pthread_mutex_unlock(&x_left_flagM);
 	}
-	if(stepper->axis == 'x' && stepper->previousDirection == 'r')
+	else if(stepper->axis == 'x' && dir == 'r')
 	{
 		printf("resetting x_right_flag.\n");
-		pthread_mutex_lock(&x_left_flagM);
+		pthread_mutex_lock(&x_right_flagM);
 		x_right_flag = 0;
-		pthread_mutex_unlock(&x_left_flagM);
+		pthread_mutex_unlock(&x_right_flagM);
 	}
-	if(stepper->axis == 'y' && stepper->previousDirection == 'l')
+	else if(stepper->axis == 'y' && dir == 'l')
 	{
 		printf("resetting y_left_flag.\n");
-		pthread_mutex_lock(&x_left_flagM);
+		pthread_mutex_lock(&y_left_flagM);
 		y_left_flag = 0;
-		pthread_mutex_unlock(&x_left_flagM);
+		pthread_mutex_unlock(&y_left_flagM);
 	}
-	if(stepper->axis == 'y' && stepper->previousDirection == 'r')
+	else if(stepper->axis == 'y' && dir == 'r')
 	{
 		printf("resetting y_right_flag.\n");
-		pthread_mutex_lock(&x_left_flagM);
+		pthread_mutex_lock(&y_right_flagM);
 		y_right_flag = 0;
-		pthread_mutex_unlock(&x_left_flagM);
+		pthread_mutex_unlock(&y_right_flagM);
 	}
+	else
+	{
+		stop_motor(stepper);
+	}
+
 }
 
 
